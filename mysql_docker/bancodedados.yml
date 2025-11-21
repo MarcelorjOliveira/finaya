@@ -1,0 +1,23 @@
+version: '2'
+
+networks:
+  vpcboot:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 14.5.0.0/16
+         gateway: 14.5.0.1
+
+services:
+    db:
+        image: mysql:8.0
+        ports:
+            - 3306:3306
+        volumes:
+            - "./.data/db:/var/lib/mysql"
+        environment:
+            MYSQL_ROOT_PASSWORD: local
+            MYSQL_DATABASE: finaya
+        networks:
+            vpcboot:
+                ipv4_address: 14.5.0.5
