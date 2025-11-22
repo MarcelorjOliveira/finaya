@@ -9,8 +9,9 @@ security:
       expire-length: 3600000
 spring:
   datasource:
+    reset-on-startup: true
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/finaya_test?createDatabaseIfNotExist=true
+    url: jdbc:mysql://localhost:3306/finaya_test
     username: root
     password: local
   jpa:
@@ -28,3 +29,8 @@ springdoc:
     - /wallets/**
   swagger-ui:
     use-root-path: true
+
+sql:
+  init:
+    mode: always
+    schema-locations: classpath:schema.sql

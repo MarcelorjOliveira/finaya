@@ -6,14 +6,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.finaya.model.Wallet;
-import br.com.finaya.repositories.WalletRepository;
+import br.com.finaya.repositories.JpaWalletRepository;
 
 @Service
 @Transactional
 public class WalletService {
-    private final WalletRepository walletRepository;
+    private final JpaWalletRepository walletRepository;
 
-    public WalletService(WalletRepository walletRepository) {
+    public WalletService(JpaWalletRepository walletRepository) {
         this.walletRepository = walletRepository;
     }
 

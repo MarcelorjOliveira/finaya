@@ -17,13 +17,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import br.com.finaya.model.Wallet;
-import br.com.finaya.repositories.WalletRepository;
+import br.com.finaya.repositories.JpaWalletRepository;
 
 @ExtendWith(MockitoExtension.class)
 class WalletServiceTest {
 
     @Mock
-    private WalletRepository walletRepository;
+    private JpaWalletRepository walletRepository;
     
     @InjectMocks
     private WalletService walletService;

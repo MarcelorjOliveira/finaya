@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 import br.com.finaya.model.Wallet;
 
 @Repository
-public interface JpaWalletRepository extends JpaRepository<Wallet, UUID>, WalletRepository {
+public interface JpaWalletRepository extends JpaRepository<Wallet, UUID> {
     
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT w FROM Wallet w WHERE w.id = :id")
