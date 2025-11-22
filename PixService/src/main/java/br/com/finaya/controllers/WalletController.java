@@ -1,11 +1,13 @@
 package br.com.finaya.controllers;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -17,6 +19,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
@@ -31,6 +34,50 @@ public class WalletController {
         this.pixKeyService = pixKeyService;
       
       }
+    
+    @Operation(
+            summary = "Realizar depósito",
+            description = "Realiza um depósito na carteira especificada. Requer chave de idempotência para evitar duplicações."
+        )
+        @ApiResponses({
+            @ApiResponse(
+                responseCode = "200",
+                description = "Depósito realizado com sucesso"
+            ),
+            @ApiResponse(
+                responseCode = "400",
+                description = "Valor inválido ou chave de idempotência ausente"
+            ),
+            @ApiResponse(
+                responseCode = "404",
+                description = "Carteira não encontrada"
+            ),
+            @ApiResponse(
+                responseCode = "409",
+                description = "Conflito de idempotência - requisição duplicada"
+            )
+        })
+        @SecurityRequirement(name = "IdempotencyKey")
+        @PostMapping("/{id}/deposit")
+        public ResponseEntity<Void> deposit(
+                @Parameter(description = "ID da carteira", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+                @PathVariable UUID id,
+                
+                @Parameter(description = "Chave de idempotência para evitar duplicações", required = true, example = "deposit-12345")
+                @RequestHeader("Idempotency-Key") String idempotencyKey,
+                
+                @Parameter(description = "Dados do depósito", required = true)
+                @RequestBody DepositRequest request) {
+            
+            walletService.deposit(id, request.amount(), idempotencyKey);
+            return ResponseEntity.ok().build();
+        }
+    
+    @Schema(description = "Request para depósito")
+    public record DepositRequest(
+        @Schema(description = "Valor a ser depositado (deve ser positivo)", example = "100.50", required = true, minimum = "0.01")
+        BigDecimal amount
+    ) {}
    
     @Operation(
             summary = "Registrar chave Pix",

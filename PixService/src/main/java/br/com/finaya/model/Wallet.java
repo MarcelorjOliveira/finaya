@@ -37,6 +37,14 @@ public class Wallet {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
+    public void deposit(BigDecimal amount) {
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+        this.balance = this.balance.add(amount);
+        this.updatedAt = LocalDateTime.now();
+    }
+    
     public Wallet() {}
    
     public Wallet(UUID userId) {
