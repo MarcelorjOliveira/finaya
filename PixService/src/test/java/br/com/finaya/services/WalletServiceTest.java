@@ -95,4 +95,32 @@ class WalletServiceTest {
         verify(idempotencyService).executeWithIdempotency(anyString(), any(Supplier.class));
     }
     
+    @Test
+    @DisplayName("Should withdraw amount successfully")
+    void shouldWithdrawAmountSuccessfully() {
+        // Given
+        BigDecimal initialBalance = new BigDecimal("200.00");
+        BigDecimal withdrawAmount = new BigDecimal("100.00");
+        String idempotencyKey = "withdraw-key-123";
+
+        wallet.deposit(initialBalance); 
+
+        when(walletRepository.findByIdWithLock(walletId)).thenReturn(Optional.of(wallet));
+        when(walletRepository.save(any(Wallet.class))).thenReturn(wallet);
+        
+        when(idempotencyService.executeWithIdempotency(anyString(), any(Supplier.class)))
+            .thenAnswer(invocation -> {
+                Supplier<?> operation = invocation.getArgument(1);
+                return operation.get();
+            });
+
+        // When
+        walletService.withdraw(walletId, withdrawAmount, idempotencyKey);
+
+        // Then
+        verify(walletRepository).findByIdWithLock(walletId);
+        verify(walletRepository).save(any(Wallet.class));
+        verify(ledgerRepository).save(any(LedgerEntry.class));
+    }
+    
 }

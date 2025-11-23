@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.context.ActiveProfiles;
 
 import br.com.finaya.controllers.WalletController.CreateWalletRequest;
+import br.com.finaya.controllers.WalletController.WithdrawRequest;
 import br.com.finaya.integrationtests.testcontainers.AbstractIntegrationTest;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -35,6 +36,37 @@ public class WalletControllerIntegrationTest extends AbstractIntegrationTest {
         RestAssured.baseURI = "http://localhost";
         RestAssured.port = port;    	
     	
+    }
+    
+
+    @Test
+    void shouldWithdrawFromWalletSuccessfully() {
+        // First create a wallet and deposit
+        UUID userId = UUID.randomUUID();
+        String walletId = given()
+            .contentType(ContentType.JSON)
+            .body(new CreateWalletRequest(userId))
+        .when()
+            .post("/wallets")
+        .then()
+            .extract().path("walletId");
+
+        given()
+            .contentType(ContentType.JSON)
+            .header(new Header("Idempotency-Key", "deposit-test-2"))
+            .body(new DepositRequest(new BigDecimal(200.00)))
+        .when()
+            .post("/wallets/{id}/deposit", walletId);
+
+        // Then withdraw
+        given()
+            .contentType(ContentType.JSON)
+            .header(new Header("Idempotency-Key", "withdraw-test-1"))
+            .body(new WithdrawRequest(new BigDecimal(100.00)))
+        .when()
+            .post("/wallets/{id}/withdraw", walletId)
+        .then()
+            .statusCode(HttpStatus.OK.value());
     }
     
     record DepositRequest(BigDecimal amount) {}

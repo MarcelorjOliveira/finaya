@@ -35,6 +35,46 @@ public class WalletController {
       
       }
     
+    public record WithdrawRequest(BigDecimal amount) {}
+    
+    @Operation(
+            summary = "Realizar saque",
+            description = "Realiza um saque da carteira especificada. Valida saldo suficiente antes de debitar."
+        )
+        @ApiResponses({
+            @ApiResponse(
+                responseCode = "200",
+                description = "Saque realizado com sucesso"
+            ),
+            @ApiResponse(
+                responseCode = "400",
+                description = "Valor inválido ou saldo insuficiente"
+            ),
+            @ApiResponse(
+                responseCode = "404",
+                description = "Carteira não encontrada"
+            ),
+            @ApiResponse(
+                responseCode = "409",
+                description = "Conflito de idempotência - requisição duplicada"
+            )
+        })
+        @SecurityRequirement(name = "IdempotencyKey")
+        @PostMapping("/{id}/withdraw")
+        public ResponseEntity<Void> withdraw(
+                @Parameter(description = "ID da carteira", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+                @PathVariable UUID id,
+                
+                @Parameter(description = "Chave de idempotência para evitar duplicações", required = true, example = "withdraw-12345")
+                @RequestHeader("Idempotency-Key") String idempotencyKey,
+                
+                @Parameter(description = "Dados do saque", required = true)
+                @RequestBody WithdrawRequest request) {
+            
+            walletService.withdraw(id, request.amount(), idempotencyKey);
+            return ResponseEntity.ok().build();
+        }
+    
     @Operation(
             summary = "Realizar depósito",
             description = "Realiza um depósito na carteira especificada. Requer chave de idempotência para evitar duplicações."

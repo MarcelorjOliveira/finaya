@@ -32,6 +32,31 @@ public class WalletService {
         return walletRepository.save(wallet);
     }
     
+    public void withdraw(UUID walletId, BigDecimal amount, String idempotencyKey) {
+        idempotencyService.executeWithIdempotency(
+            "withdraw:" + walletId + ":" + idempotencyKey,
+            () -> {
+                Wallet wallet = walletRepository.findByIdWithLock(walletId)
+                    .orElseThrow(() -> new RuntimeException("Wallet not found"));
+                
+                wallet.withdraw(amount);
+                Wallet savedWallet = walletRepository.save(wallet);
+                
+                LedgerEntry entry = new LedgerEntry(
+                    walletId, 
+                    UUID.randomUUID(), 
+                    amount.negate(), 
+                    LedgerEntry.EntryType.WITHDRAWAL,
+                    savedWallet.getBalance(),
+                    "Withdrawal"
+                );
+                ledgerRepository.save(entry);
+                
+                return null;
+            }
+        );
+    }
+    
     public void deposit(UUID walletId, BigDecimal amount, String idempotencyKey) {
         idempotencyService.executeWithIdempotency(
             "deposit:" + walletId + ":" + idempotencyKey,
