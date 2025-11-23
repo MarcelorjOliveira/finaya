@@ -65,8 +65,8 @@ public class WalletController {
                 @Parameter(description = "ID da carteira", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
                 @PathVariable UUID id,
                 
-                @Parameter(description = "Chave de idempotência para evitar duplicações", required = true, example = "withdraw-12345")
-                @RequestHeader("Idempotency-Key") String idempotencyKey,
+                @Parameter(description = "Chave de idempotência para evitar duplicações", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+                @RequestHeader("Idempotency-Key") UUID idempotencyKey,
                 
                 @Parameter(description = "Dados do saque", required = true)
                 @RequestBody WithdrawRequest request) {
@@ -103,8 +103,8 @@ public class WalletController {
                 @Parameter(description = "ID da carteira", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
                 @PathVariable UUID id,
                 
-                @Parameter(description = "Chave de idempotência para evitar duplicações", required = true, example = "deposit-12345")
-                @RequestHeader("Idempotency-Key") String idempotencyKey,
+                @Parameter(description = "Chave de idempotência para evitar duplicações", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+                @RequestHeader("Idempotency-Key") UUID idempotencyKey,
                 
                 @Parameter(description = "Dados do depósito", required = true)
                 @RequestBody DepositRequest request) {

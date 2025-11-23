@@ -24,5 +24,6 @@ springdoc:
   pathsToMatch:
     - /auth/** 
     - /wallets/**
+    - /pix/**
   swagger-ui:
     use-root-path: true

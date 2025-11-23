@@ -1,6 +1,7 @@
 package br.com.finaya.model;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -14,41 +15,43 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "idempotency_records")
-public class IdempotencyRecordEntity {
+public class IdempotencyRecord {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
-    @Column(name = "record_key", nullable = false, unique = true)
-    private String recordKey;
-    
+
+    @Column(name = "record_key", nullable = false, unique = true, columnDefinition = "BINARY(16)")
+    private UUID recordKey; 
+
     @Column(name = "result_type")
     private String resultType;
-    
+
     @Column(name = "result_data", columnDefinition = "JSON")
     private String resultData;
-    
+
     @Column(name = "error_type")
     private String errorType;
-    
+
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
-    
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-    
+
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-    
+
     // Constructors
-    public IdempotencyRecordEntity() {}
-    
-    public IdempotencyRecordEntity(String recordKey) {
+    public IdempotencyRecord() {}
+
+    public IdempotencyRecord(UUID recordKey) {
         this.recordKey = recordKey;
     }
-    
+
+    // Business methods
     public void markSuccess(Object result) {
         this.resultType = result != null ? result.getClass().getName() : null;
         this.resultData = result != null ? result.toString() : null;
@@ -62,29 +65,38 @@ public class IdempotencyRecordEntity {
         this.errorType = errorType;
         this.errorMessage = errorMessage;
     }
-    
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-    
-    public String getRecordKey() { return recordKey; }
-    public void setRecordKey(String recordKey) { this.recordKey = recordKey; }
-    
+
+    public UUID getRecordKey() { return recordKey; }
+    public void setRecordKey(UUID recordKey) { this.recordKey = recordKey; }
+
     public String getResultType() { return resultType; }
     public void setResultType(String resultType) { this.resultType = resultType; }
-    
+
     public String getResultData() { return resultData; }
     public void setResultData(String resultData) { this.resultData = resultData; }
-    
+
     public String getErrorType() { return errorType; }
     public void setErrorType(String errorType) { this.errorType = errorType; }
-    
+
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
-    
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-    
+
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+	@Override
+	public String toString() {
+		return "IdempotencyRecord [id=" + id + ", recordKey=" + recordKey + ", resultType=" + resultType
+				+ ", resultData=" + resultData + ", errorType=" + errorType + ", errorMessage=" + errorMessage
+				+ ", createdAt=" + createdAt + ", updatedAt=" + updatedAt + "]";
+	}
+    
+    
 }

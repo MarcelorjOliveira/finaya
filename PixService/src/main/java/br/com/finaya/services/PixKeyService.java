@@ -10,18 +10,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.finaya.model.PixKey;
 import br.com.finaya.model.Wallet;
-import br.com.finaya.repositories.JpaPixKeyRepository;
-import br.com.finaya.repositories.JpaWalletRepository;
+import br.com.finaya.repositories.PixKeyRepository;
+import br.com.finaya.repositories.WalletRepository;
 
 @Service
 @Transactional
 public class PixKeyService {
     private static final Logger logger = LoggerFactory.getLogger(PixKeyService.class);
     
-    private final JpaPixKeyRepository pixKeyRepository;
-    private final JpaWalletRepository walletRepository;
+    private final PixKeyRepository pixKeyRepository;
+    private final WalletRepository walletRepository;
 
-    public PixKeyService(JpaPixKeyRepository pixKeyRepository, JpaWalletRepository walletRepository) {
+    public PixKeyService(PixKeyRepository pixKeyRepository, WalletRepository walletRepository) {
         this.pixKeyRepository = pixKeyRepository;
         this.walletRepository = walletRepository;
     }

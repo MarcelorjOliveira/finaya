@@ -22,17 +22,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import br.com.finaya.model.PixKey;
 import br.com.finaya.model.Wallet;
-import br.com.finaya.repositories.JpaPixKeyRepository;
-import br.com.finaya.repositories.JpaWalletRepository;
+import br.com.finaya.repositories.PixKeyRepository;
+import br.com.finaya.repositories.WalletRepository;
 
 @ExtendWith(MockitoExtension.class)
 class PixKeyServiceTest {
 	
     @Mock
-    private JpaPixKeyRepository pixKeyRepository;
+    private PixKeyRepository pixKeyRepository;
 
     @Mock
-    private JpaWalletRepository walletRepository;
+    private WalletRepository walletRepository;
 
     @InjectMocks
     private PixKeyService pixKeyService;

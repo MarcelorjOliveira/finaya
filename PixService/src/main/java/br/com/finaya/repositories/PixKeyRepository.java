@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
 import br.com.finaya.model.PixKey;
 
 @Repository
-public interface JpaPixKeyRepository extends JpaRepository<PixKey, UUID>{
+public interface PixKeyRepository extends JpaRepository<PixKey, UUID>{
     
     @Query("SELECT p FROM PixKey p WHERE p.keyValue = :key AND p.status = 'ACTIVE'")
     Optional<PixKey> findByKeyValueAndActive(@Param("key") String key);

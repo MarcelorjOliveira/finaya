@@ -1,11 +1,10 @@
 package br.com.finaya.services;
 
-// Importações para assertions
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-// Importações para Mockito
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,14 +23,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import br.com.finaya.model.LedgerEntry;
 import br.com.finaya.model.Wallet;
-import br.com.finaya.repositories.JpaWalletRepository;
 import br.com.finaya.repositories.LedgerEntryRepository;
+import br.com.finaya.repositories.WalletRepository;
 
 @ExtendWith(MockitoExtension.class)
 class WalletServiceTest {
 
     @Mock
-    private JpaWalletRepository walletRepository;
+    private WalletRepository walletRepository;
 
     @Mock
     private LedgerEntryRepository ledgerRepository;
@@ -45,12 +44,15 @@ class WalletServiceTest {
     private UUID walletId;
     private UUID userId;
     private Wallet wallet;
+    private UUID idempotencyKey;
 
     @BeforeEach
     void setUp() {
         walletId = UUID.randomUUID();
         userId = UUID.randomUUID();
         wallet = new Wallet(userId);
+        wallet.setId(walletId);
+        idempotencyKey = UUID.randomUUID();
     }
 
     @Test
@@ -73,16 +75,14 @@ class WalletServiceTest {
     void shouldDepositAmountSuccessfully() {
         // Given
         BigDecimal amount = new BigDecimal("100.00");
-        String idempotencyKey = "deposit-key-123";
 
         when(walletRepository.findByIdWithLock(walletId)).thenReturn(Optional.of(wallet));
         when(walletRepository.save(any(Wallet.class))).thenReturn(wallet);
         
-        // CORREÇÃO: Usar Supplier em vez de Runnable
-        when(idempotencyService.executeWithIdempotency(anyString(), any(Supplier.class)))
+        when(idempotencyService.executeWithIdempotency(any(UUID.class), any(Supplier.class)))
             .thenAnswer(invocation -> {
                 Supplier<?> operation = invocation.getArgument(1);
-                return operation.get(); // Chama get() em vez de run()
+                return operation.get();
             });
 
         // When
@@ -92,23 +92,22 @@ class WalletServiceTest {
         verify(walletRepository).findByIdWithLock(walletId);
         verify(walletRepository).save(any(Wallet.class));
         verify(ledgerRepository).save(any(LedgerEntry.class));
-        verify(idempotencyService).executeWithIdempotency(anyString(), any(Supplier.class));
+        verify(idempotencyService).executeWithIdempotency(eq(idempotencyKey), any(Supplier.class));
     }
-    
+
     @Test
     @DisplayName("Should withdraw amount successfully")
     void shouldWithdrawAmountSuccessfully() {
         // Given
         BigDecimal initialBalance = new BigDecimal("200.00");
         BigDecimal withdrawAmount = new BigDecimal("100.00");
-        String idempotencyKey = "withdraw-key-123";
 
-        wallet.deposit(initialBalance); 
+        wallet.deposit(initialBalance);
 
         when(walletRepository.findByIdWithLock(walletId)).thenReturn(Optional.of(wallet));
         when(walletRepository.save(any(Wallet.class))).thenReturn(wallet);
         
-        when(idempotencyService.executeWithIdempotency(anyString(), any(Supplier.class)))
+        when(idempotencyService.executeWithIdempotency(any(UUID.class), any(Supplier.class)))
             .thenAnswer(invocation -> {
                 Supplier<?> operation = invocation.getArgument(1);
                 return operation.get();
@@ -121,6 +120,72 @@ class WalletServiceTest {
         verify(walletRepository).findByIdWithLock(walletId);
         verify(walletRepository).save(any(Wallet.class));
         verify(ledgerRepository).save(any(LedgerEntry.class));
+        verify(idempotencyService).executeWithIdempotency(eq(idempotencyKey), any(Supplier.class));
     }
-    
+
+    @Test
+    @DisplayName("Should throw exception when wallet not found for deposit")
+    void shouldThrowExceptionWhenWalletNotFoundForDeposit() {
+        // Given
+        BigDecimal amount = new BigDecimal("100.00");
+
+        when(walletRepository.findByIdWithLock(walletId)).thenReturn(Optional.empty());
+        when(idempotencyService.executeWithIdempotency(any(UUID.class), any(Supplier.class)))
+            .thenAnswer(invocation -> {
+                Supplier<?> operation = invocation.getArgument(1);
+                return operation.get();
+            });
+
+        // When & Then
+        assertThrows(RuntimeException.class, () -> 
+            walletService.deposit(walletId, amount, idempotencyKey));
+
+        verify(walletRepository).findByIdWithLock(walletId);
+    }
+
+    @Test
+    @DisplayName("Should throw exception when withdrawing with insufficient balance")
+    void shouldThrowExceptionWhenWithdrawingWithInsufficientBalance() {
+        // Given
+        BigDecimal withdrawAmount = new BigDecimal("100.00");
+
+        when(walletRepository.findByIdWithLock(walletId)).thenReturn(Optional.of(wallet));
+        when(idempotencyService.executeWithIdempotency(any(UUID.class), any(Supplier.class)))
+            .thenAnswer(invocation -> {
+                Supplier<?> operation = invocation.getArgument(1);
+                return operation.get();
+            });
+
+        // When & Then
+        assertThrows(RuntimeException.class, () -> 
+            walletService.withdraw(walletId, withdrawAmount, idempotencyKey));
+
+        verify(walletRepository).findByIdWithLock(walletId);
+    }
+
+    @Test
+    @DisplayName("Should find wallet by ID successfully")
+    void shouldFindWalletByIdSuccessfully() {
+        // Given
+        when(walletRepository.findById(walletId)).thenReturn(Optional.of(wallet));
+
+        // When
+        Wallet result = walletService.findById(walletId);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(walletId, result.getId());
+        verify(walletRepository).findById(walletId);
+    }
+
+    @Test
+    @DisplayName("Should throw exception when wallet not found by ID")
+    void shouldThrowExceptionWhenWalletNotFoundById() {
+        // Given
+        when(walletRepository.findById(walletId)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThrows(RuntimeException.class, () -> walletService.findById(walletId));
+        verify(walletRepository).findById(walletId);
+    }
 }

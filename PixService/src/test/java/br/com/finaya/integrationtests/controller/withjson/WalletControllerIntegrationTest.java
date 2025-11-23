@@ -38,11 +38,11 @@ public class WalletControllerIntegrationTest extends AbstractIntegrationTest {
     	
     }
     
-
     @Test
     void shouldWithdrawFromWalletSuccessfully() {
         // First create a wallet and deposit
         UUID userId = UUID.randomUUID();
+        UUID idempotencyKey = UUID.randomUUID();
         String walletId = given()
             .contentType(ContentType.JSON)
             .body(new CreateWalletRequest(userId))
@@ -53,15 +53,17 @@ public class WalletControllerIntegrationTest extends AbstractIntegrationTest {
 
         given()
             .contentType(ContentType.JSON)
-            .header(new Header("Idempotency-Key", "deposit-test-2"))
+            .header(new Header("Idempotency-Key", idempotencyKey.toString()))
             .body(new DepositRequest(new BigDecimal(200.00)))
         .when()
             .post("/wallets/{id}/deposit", walletId);
 
+        UUID idempotencyKeyWithdraw = UUID.randomUUID();
+        
         // Then withdraw
         given()
             .contentType(ContentType.JSON)
-            .header(new Header("Idempotency-Key", "withdraw-test-1"))
+            .header(new Header("Idempotency-Key", idempotencyKeyWithdraw.toString()))
             .body(new WithdrawRequest(new BigDecimal(100.00)))
         .when()
             .post("/wallets/{id}/withdraw", walletId)
@@ -83,16 +85,18 @@ public class WalletControllerIntegrationTest extends AbstractIntegrationTest {
         .then()
             .extract().path("walletId");
 
-        // Then deposit
+        // Then deposit with UUID idempotency key
+        UUID idempotencyKey = UUID.randomUUID();
+        
         given()
             .contentType(ContentType.JSON)
-            .header(new Header("Idempotency-Key", "deposit-test-1"))
+            .header(new Header("Idempotency-Key", idempotencyKey.toString()))
             .body(new DepositRequest(new BigDecimal(100.00)))
         .when()
             .post("/wallets/{id}/deposit", walletId)
         .then()
             .statusCode(HttpStatus.OK.value());
-    }   
+    } 
 
     @Test
     void shouldRegisterPixKeySuccessfully() {
