@@ -1,14 +1,18 @@
 package br.com.finaya.controllers;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.com.finaya.services.PixKeyService;
@@ -34,8 +38,6 @@ public class WalletController {
         this.pixKeyService = pixKeyService;
       
       }
-    
-    public record WithdrawRequest(BigDecimal amount) {}
     
     @Operation(
             summary = "Realizar saque",
@@ -112,12 +114,6 @@ public class WalletController {
             walletService.deposit(id, request.amount(), idempotencyKey);
             return ResponseEntity.ok().build();
         }
-    
-    @Schema(description = "Request para depósito")
-    public record DepositRequest(
-        @Schema(description = "Valor a ser depositado (deve ser positivo)", example = "100.50", required = true, minimum = "0.01")
-        BigDecimal amount
-    ) {}
    
     @Operation(
             summary = "Registrar chave Pix",
@@ -222,6 +218,70 @@ public class WalletController {
         return ResponseEntity.ok(new CreateWalletResponse(walletId));
     }
     
-    public record CreateWalletRequest(UUID userId) {}
-    public record CreateWalletResponse(UUID walletId) {}
+    @Operation(
+            summary = "Consultar saldo",
+            description = "Consulta o saldo da carteira. Pode ser consultado o saldo atual ou histórico em uma data específica."
+        )
+        @ApiResponses({
+            @ApiResponse(
+                responseCode = "200",
+                description = "Saldo consultado com sucesso",
+                content = @Content(schema = @Schema(implementation = BalanceResponse.class))
+            ),
+            @ApiResponse(
+                responseCode = "404",
+                description = "Carteira não encontrada"
+            )
+        })
+        @GetMapping("/{id}/balance")
+        public ResponseEntity<BalanceResponse> getBalance(
+                @Parameter(description = "ID da carteira", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+                @PathVariable UUID id,
+                
+                @Parameter(
+                    description = "Data e hora para consulta do saldo histórico (formato ISO 8601)",
+                    example = "2024-01-15T14:30:00Z",
+                    required = false
+                )
+                @RequestParam(required = false) 
+                @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime at) {
+            
+            BigDecimal balance;
+            if (at != null) {
+                balance = walletService.getHistoricalBalance(id, at);
+            } else {
+                balance = walletService.getCurrentBalance(id);
+            }
+            return ResponseEntity.ok(new BalanceResponse(balance));
+        }
+    
+    @Schema(description = "Request para criação de carteira")
+    public record CreateWalletRequest(
+        @Schema(description = "ID do usuário proprietário da carteira", example = "123e4567-e89b-12d3-a456-426614174000", required = true)
+        UUID userId
+    ) {}
+
+    @Schema(description = "Response de criação de carteira")
+    public record CreateWalletResponse(
+        @Schema(description = "ID da carteira criada", example = "123e4567-e89b-12d3-a456-426614174000")
+        UUID walletId
+    ) {}
+
+    @Schema(description = "Request para depósito")
+    public record DepositRequest(
+        @Schema(description = "Valor a ser depositado (deve ser positivo)", example = "100.50", required = true, minimum = "0.01")
+        BigDecimal amount
+    ) {}
+
+    @Schema(description = "Request para saque")
+    public record WithdrawRequest(
+        @Schema(description = "Valor a ser sacado (deve ser positivo e menor ou igual ao saldo)", example = "50.00", required = true, minimum = "0.01")
+        BigDecimal amount
+    ) {}
+
+    @Schema(description = "Response de consulta de saldo")
+    public record BalanceResponse(
+        @Schema(description = "Saldo atual ou histórico da carteira", example = "1500.75", required = true)
+        BigDecimal balance
+    ) {}
 }

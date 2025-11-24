@@ -84,4 +84,81 @@ public class PixTransferService {
         );
     }
 
+    public void processWebhook(UUID endToEndId, String eventId, String eventType, UUID idempotencyKey) {
+        logger.info("Processing PIX webhook - EndToEndId: {}, EventId: {}, EventType: {}, IdempotencyKey: {}", 
+                   endToEndId, eventId, eventType, idempotencyKey);
+        
+        idempotencyService.executeWithIdempotency(
+            idempotencyKey,
+            () -> {
+                PixTransfer transfer = pixTransferRepository.findByEndToEndId(endToEndId)
+                    .orElseThrow(() -> new RuntimeException("PIX transfer not found: " + endToEndId));
+
+                // Lock wallets involved in the transfer
+                Wallet fromWallet = walletRepository.findByIdWithLock(transfer.getFromWalletId())
+                    .orElseThrow(() -> new RuntimeException("From wallet not found: " + transfer.getFromWalletId()));
+                Wallet toWallet = walletRepository.findByIdWithLock(transfer.getToWalletId())
+                    .orElseThrow(() -> new RuntimeException("To wallet not found: " + transfer.getToWalletId()));
+
+                if ("CONFIRMED".equals(eventType)) {
+                    if (transfer.getStatus() == PixTransfer.TransferStatus.PENDING) {
+                        // Finalize the transfer - credit to destination wallet
+                        toWallet.deposit(transfer.getAmount());
+                        walletRepository.save(toWallet);
+
+                        // Update ledger entries
+                        LedgerEntry fromFinalEntry = new LedgerEntry(
+                            transfer.getFromWalletId(),
+                            transfer.getEndToEndId(),
+                            transfer.getAmount().negate(),
+                            LedgerEntry.EntryType.PIX_OUT,
+                            fromWallet.getBalance(),
+                            "PIX transfer completed - " + transfer.getEndToEndId()
+                        );
+                        ledgerRepository.save(fromFinalEntry);
+
+                        LedgerEntry toEntry = new LedgerEntry(
+                            transfer.getToWalletId(),
+                            transfer.getEndToEndId(),
+                            transfer.getAmount(),
+                            LedgerEntry.EntryType.PIX_IN,
+                            toWallet.getBalance(),
+                            "PIX transfer received - " + transfer.getEndToEndId()
+                        );
+                        ledgerRepository.save(toEntry);
+
+                        transfer.confirm();
+                        pixTransferRepository.save(transfer);
+                        
+                        logger.info("PIX transfer confirmed: {}", endToEndId);
+                    }
+                } else if ("REJECTED".equals(eventType)) {
+                    if (transfer.getStatus() == PixTransfer.TransferStatus.PENDING) {
+                        // Return reserved amount to from wallet
+                        fromWallet.deposit(transfer.getAmount());
+                        walletRepository.save(fromWallet);
+
+                        // Create reversal ledger entry
+                        LedgerEntry reversalEntry = new LedgerEntry(
+                            transfer.getFromWalletId(),
+                            transfer.getEndToEndId(),
+                            transfer.getAmount(),
+                            LedgerEntry.EntryType.DEPOSIT,
+                            fromWallet.getBalance(),
+                            "PIX transfer rejected - " + transfer.getEndToEndId()
+                        );
+                        ledgerRepository.save(reversalEntry);
+
+                        transfer.reject();
+                        pixTransferRepository.save(transfer);
+                        
+                        logger.info("PIX transfer rejected: {}", endToEndId);
+                    }
+                }
+
+                return null;
+            }
+        );
+    }
+
  }

@@ -1,6 +1,7 @@
 package br.com.finaya.services;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -90,6 +91,23 @@ public class WalletService {
                 return null;
             }
         );
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getCurrentBalance(UUID walletId) {
+        return walletRepository.findBalanceById(walletId)
+            .orElseThrow(() -> new RuntimeException("Wallet not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getHistoricalBalance(UUID walletId, LocalDateTime timestamp) {
+    	
+         BigDecimal balance = ledgerRepository.findBalanceAtTimestamp(walletId, timestamp)
+            .orElse(BigDecimal.ZERO);
+         
+         System.out.println("Balance:;"+balance);
+         
+         return balance; 
     }
 
     @Transactional(readOnly = true)

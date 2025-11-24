@@ -1,5 +1,6 @@
 package br.com.finaya.repositories;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,8 +17,10 @@ import br.com.finaya.model.Wallet;
 @Repository
 public interface WalletRepository extends JpaRepository<Wallet, UUID> {
     
-	@Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT w FROM Wallet w WHERE w.id = :id")
     Optional<Wallet> findByIdWithLock(@Param("id") UUID id);
-	
+    
+    @Query("SELECT w.balance FROM Wallet w WHERE w.id = :id")
+    Optional<BigDecimal> findBalanceById(@Param("id") UUID id);
 }

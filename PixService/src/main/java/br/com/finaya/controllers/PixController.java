@@ -79,46 +79,121 @@ public class PixController {
             transfer.getStatus().name()
         ));
     }
-
-
-    // Records para request/response
-    @Schema(description = "Request para transferência Pix")
-    public record PixTransferRequest(
-        @Schema(description = "ID da carteira de origem", example = "123e4567-e89b-12d3-a456-426614174000", required = true)
-        UUID fromWalletId,
-        
-        @Schema(
-            description = "Chave Pix de destino (email, telefone ou chave aleatória)", 
-            example = "fulano@email.com", 
-            required = true
+    
+    @Operation(
+            summary = "Webhook de confirmação Pix",
+            description = "Endpoint para receber confirmações ou rejeições de transferências Pix. " +
+                         "Suporta idempotência por eventId e processamento fora de ordem. Requer chave de idempotência UUID."
         )
-        String toPixKey,
-        
-        @Schema(
-            description = "Valor da transferência (deve ser positivo)", 
-            example = "150.75", 
-            required = true, 
-            minimum = "0.01"
-        )
-        BigDecimal amount
-    ) {}
+        @ApiResponses({
+            @ApiResponse(
+                responseCode = "200",
+                description = "Webhook processado com sucesso"
+            ),
+            @ApiResponse(
+                responseCode = "400",
+                description = "Dados do webhook inválidos"
+            ),
+            @ApiResponse(
+                responseCode = "404",
+                description = "Transferência Pix não encontrada"
+            ),
+            @ApiResponse(
+                responseCode = "409",
+                description = "Conflito de idempotência - eventId duplicado"
+            ),
+            @ApiResponse(
+                responseCode = "422",
+                description = "Transição de estado inválida (ex: confirmar transferência já rejeitada)"
+            )
+        })
+        @SecurityRequirement(name = "IdempotencyKey")
+        @PostMapping("/webhook")
+        public ResponseEntity<Void> webhook(
+                @Parameter(description = "Chave de idempotência UUID baseada no eventId", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+                @RequestHeader("Idempotency-Key") UUID idempotencyKey,
+                
+                @Parameter(description = "Dados do webhook Pix", required = true)
+                @RequestBody PixWebhookRequest request) {
+            
+            pixTransferService.processWebhook(
+                request.endToEndId(),
+                request.eventId(),
+                request.eventType(),
+                idempotencyKey
+            );
+            return ResponseEntity.ok().build();
+        }
 
-    @Schema(description = "Response de transferência Pix")
-    public record PixTransferResponse(
-        @Schema(
-            description = "ID end-to-end da transferência (identificador único)", 
-            example = "123e4567-e89b-12d3-a456-426614174000",
-            required = true
-        )
-        UUID endToEndId,
-        
-        @Schema(
-            description = "Status atual da transferência", 
-            example = "PENDING",
-            allowableValues = {"PENDING", "CONFIRMED", "REJECTED"},
-            required = true
-        )
-        String status
-    ) {}
+        // Records para request/response
+        @Schema(description = "Request para transferência Pix")
+        public record PixTransferRequest(
+            @Schema(description = "ID da carteira de origem", example = "123e4567-e89b-12d3-a456-426614174000", required = true)
+            UUID fromWalletId,
+            
+            @Schema(
+                description = "Chave Pix de destino (email, telefone ou chave aleatória)", 
+                example = "fulano@email.com", 
+                required = true
+            )
+            String toPixKey,
+            
+            @Schema(
+                description = "Valor da transferência (deve ser positivo)", 
+                example = "150.75", 
+                required = true, 
+                minimum = "0.01"
+            )
+            BigDecimal amount
+        ) {}
 
+        @Schema(description = "Response de transferência Pix")
+        public record PixTransferResponse(
+            @Schema(
+                description = "ID end-to-end da transferência (identificador único)", 
+                example = "123e4567-e89b-12d3-a456-426614174000",
+                required = true
+            )
+            UUID endToEndId,
+            
+            @Schema(
+                description = "Status atual da transferência", 
+                example = "PENDING",
+                allowableValues = {"PENDING", "CONFIRMED", "REJECTED"},
+                required = true
+            )
+            String status
+        ) {}
+
+        @Schema(description = "Request de webhook Pix")
+        public record PixWebhookRequest(
+            @Schema(
+                description = "ID end-to-end da transferência", 
+                example = "123e4567-e89b-12d3-a456-426614174000",
+                required = true
+            )
+            UUID endToEndId,
+            
+            @Schema(
+                description = "ID único do evento (usado para idempotência)", 
+                example = "event-12345",
+                required = true
+            )
+            String eventId,
+            
+            @Schema(
+                description = "Tipo do evento", 
+                example = "CONFIRMED",
+                allowableValues = {"CONFIRMED", "REJECTED"},
+                required = true
+            )
+            String eventType,
+            
+            @Schema(
+                description = "Data e hora em que o evento ocorreu (formato ISO 8601)", 
+                example = "2024-01-15T14:30:00Z",
+                required = true
+            )
+            String occurredAt
+        ) {}
 }
