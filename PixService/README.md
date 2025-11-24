@@ -1,1 +1,0 @@
-Antes de rodar os testes levantar o banco de dados com docker-compose -f bancodedados.yml up
